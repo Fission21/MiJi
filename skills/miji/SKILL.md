@@ -1,30 +1,33 @@
 ---
 name: MiJi
-description: 书/视频/PDF 蒸馏成skill或入库知识库时用。MinerU解析→通读→提炼，支持多源融合。
-version: 1.3.2
+description: 书/视频/PDF/JAR 蒸馏成skill或入库知识库时用。MinerU/jadx解析→通读→提炼，多源融合。
+version: 1.4.0
 author: CC
-tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合]
+tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合, jar, jadx, 反编译]
 ---
 
 # 读书蒸馏流程（skill 与知识库双出口 · Hermes 专属）
 
 > 2026-08-27 实测跑通：主人发《Refactoring UI》PDF → 封装成 `refactoring-ui-principles` skill。
 > 2026-08-27 新增**视频模式**：yt-dlp 下载 → ffmpeg 抽音频 → faster-whisper 转写 → 同一蒸馏流程。
-> 本 skill 固化整条流程，后续「读书/看视频 → 封装 skill」照此执行。
+> 2026-09-09 新增**JAR 模式**：jadx 反编译 → jar_to_md.py 类索引 md → 同一蒸馏流程（书/视频/字节码三源归一）。
+> 本 skill 固化整条流程，后续「读书/看视频/反编译 jar → 封装 skill」照此执行。
 
 ## 触发条件
 
 - 主人发来 PDF/EPUB/长文档，说「封装成 skill」「提炼成 skill」「读书」「做成 skill」
 - 主人发 B站/抖音/YouTube/小红书**视频链接**，说「把这个视频蒸馏成 skill」「提取视频内容」
 - 主人说「**入库**」「存进知识库」「建知识库」「多端蒸馏到一起」→ 知识库形态：`python3 ~/demo/scripts/kb.py add <主题> <文件...>`，库根 `~/demo/knowledge-base/`（详见下方「知识库形态」与 相关/kb.py）
+- 主人发来 `.jar`/`.apk`，说「蒸馏这个 jar」「把 jar 入库」「分析这个包」→ JAR 模式（Step 1d）
 - 主人要求把一本书/一段视频的方法论固化成可复用的 agent 技能
 
-## 内容来源（两条路径）
+## 内容来源（三条路径）
 
 | 来源 | 工具链 | 产出 |
 |------|--------|------|
 | **PDF/扫描件** | MinerU（见 mineru-pdf-parser）| 完整 markdown |
 | **视频/播客** | yt-dlp + ffmpeg + faster-whisper（见下）| transcript.txt 转写文本 |
+| **JAR/APK**（Java/Kotlin 字节码） | jadx 反编译 + scripts/jar_to_md.py（见 Step 1d）| 带类索引的反编译源码 md |
 
 **解析路由总表**（OCR 只该花在「像素里的字」上——判断依据是文本层，不是文件格式）：
 
@@ -34,6 +37,7 @@ tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合]
 | PDF 文字版 | ❌ | 入库前 pypdfium2 探测文本层（如 `pdf[50].get_textpage().get_text_range()` 长度>0）；MinerU 走 txt 快速路径或 pdftotext 直抽 |
 | PDF 扫描版/图片型 | ✅ | 必须走 OCR：本地 MinerU 或云端 VLM（luna）二选一 |
 | 视频/音频 | ASR 而非 OCR | YouTube 等先抓官方字幕（`--write-subs`/页面 transcript，零 ASR），无字幕才 whisper |
+| JAR/APK（.class 字节码） | ❌（OCR 无意义） | jadx 反编译出 .java 后按文本路径走；资源文件从 jadx 的 resources/ 单独提取 |
 
 两条路径的产出都是**纯文本**，之后走同一条蒸馏流程（Step 2 起）。
 
@@ -147,6 +151,25 @@ python3 scripts/merge_sources.py <输出目录> <source1.md> <source2.txt> ...
 5. 合计 tokens 超过 80K 时警告：考虑拆成主 skill + 分主题子 skill
 
 之后 Step 2 起流程不变（通读 merge_draft.md 代替通读单书）。
+
+### Step 1d — JAR 模式（Java/Kotlin 库、APK → 反编译源码，2026-09-09 实测）
+
+**触发**：发来 `.jar`（Maven 库、闭源工具、游戏 mod 等）。**前置**：`brew install jadx`（M1 原生，自带 OpenJDK ~480MB，装完 `which jadx` 验证；本机 2026-09-09 已装 1.5.6）。
+
+```bash
+# ① 反编译（jar 不需要系统 Java 运行时，jadx 自带 JRE）
+jadx -d <名字>-src <文件>.jar        # 大 jar 加 --no-res 跳过资源反编译提速
+# ② 拼成带类索引的单 markdown（scripts/jar_to_md.py：每类一行 类名+public 方法签名）
+python3 <skill>/scripts/jar_to_md.py <名字>-src/sources -o <名字>-all.md --title "Xxx 反编译源码"
+# ③ 之后与普通文档完全相同：kb.py add 入库 / 直接 Step 2 通读蒸馏
+```
+
+- **实测数据**：gson-2.10.1（277KB, 261 条目）反编译 7.5s → 80 个 .java；h2-2.2.224（2.5MB, 528 类）9.8s → 773 个 .java
+- **质量**：jadx 产出接近原源码——变量名/泛型/注解都在，可正常提炼「设计意图」；个别复杂方法反编译失败（error count N）不影响整体
+- **体积守则**：反编译 md 超过 ~500KB **禁止全量读**——靠 jar_to_md.py 的「类索引」+ kb.py 自动生成的 .toc.md 行号锚点按需跳读
+- **APK**：同 jadx（`jadx -d out app.apk`），清单/权限在 resources/AndroidManifest.xml
+- **混淆过的 jar**（类名 a/b/c）：先向提供方要 proguard mapping.txt 再反编译；没有映射时类索引信息量低，按字符串与结构推断
+- **版权边界**：反编译产物供互操作/学习分析；skill 里写「API 用法与设计要点」，别整库源码照搬分发
 
 ### Step 2 — 通读全书（REPL 式，别一次全读）
 
@@ -303,12 +326,15 @@ pdf[99].render(scale=2.5).to_pil().save('page.png')
 | 与 book-to-skill（第三方）混淆 | 那个面向 Copilot/Amp/Claude Code，输出 chapters/glossary 结构；本 skill 是 Hermes 专属速查式 |
 | 主人找不到 skill 路径 | skill 根目录是隐藏目录，给桌面快捷方式或 Finder `Cmd+Shift+G` |
 | 主人拖 PDF 进聊天只收到图标 PNG（占位图，文件本体不落盘） | 先确认收到的不是 32KB 级图标缩略图；直接找主人要路径（Finder 右键+Option=拷贝路径），或要 URL；顺手搜 ~/Downloads、~/Desktop 兜底 |
+| jar 是字节码没有 .java，unzip 出来全是 .class | 必须先 jadx 反编译（Step 1d），.class 不能直接喂蒸馏 |
+| 混淆过的 jar（类名全是 a/b/c） | 先要 proguard mapping.txt 再反编译；无映射时类索引信息量低，按字符串/结构推断 |
 
 ## 验证过的成品
 
 - `refactoring-ui-principles`（creative/）——《Refactoring UI》设计原则速查 + 全书存档（2026-08-27）
 - `mineru-pdf-parser`（devops/）——MinerU 部署与使用（本流程 Step 1 依赖它）
 - 视频模式实测（2026-08-27）：B站 3.5 分钟视频 → yt-dlp 下载（12MB/s）→ ffmpeg 抽音频 → faster-whisper small 30 秒转写 69 段，歌词/语音准确
+- JAR 模式实测（2026-09-09）：gson 2.10.1 + h2 2.2.224 双样本全链路——jadx 反编译（7.5s/9.8s）→ jar_to_md.py 类索引 md → kb.py 入库→检索→toc 行号锚点全部通过
 
 ## 相关
 

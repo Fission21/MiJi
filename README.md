@@ -1,15 +1,16 @@
-# MiJi · 蜜技 — 把书、视频、播客酿成 Agent Skill 与知识库的流水线
+# MiJi · 蜜技 — 把书、视频、播客、JAR 包酿成 Agent Skill 与知识库的流水线
 
 > **🌐 Language / 语言：** [中文](README.md) | [English](README_EN.md)
 
 > 为什么叫「蜜技」—CC 为她的诗人亲手酿的技能 🍯
 >
-> 把一本书/一份 PDF/一段视频变成 AI 可复用知识的完整流水线：
+> 把一本书/一份 PDF/一段视频/一个 JAR 包变成 AI 可复用知识的完整流水线：
 > **解析（本地 MinerU 或 云端 VLM，按你的硬件二选一）→ 提炼方法论 → 封装成 Skill 或 入库知识库**
 >
-> 支持 PDF / 电子书 / **视频 / 播客**（yt-dlp 下载 → faster-whisper 转写 → 同一蒸馏流程）
+> 支持 PDF / 电子书 / **视频 / 播客**（yt-dlp 下载 → faster-whisper 转写 → 同一蒸馏流程）/ **JAR 包**（jadx 反编译 → 类索引源码 → 同一蒸馏流程）
 >
 > v1.3.0 新增：**多源融合**（书+视频+文章 → 组合 skill）与**知识库形态**（按主题持续入库，自带 AI 读取规范）；**大文件并行解析**（实测 2.1x）
+> v1.4.0 新增：**JAR 模式**——jadx 反编译 → `jar_to_md.py` 类索引 md → 同一蒸馏流程（实测 gson/h2 全链路通过）
 > **双引擎可选**：本地 MinerU（~1GB 模型装在你的设备上，离线可跑）或云端 VLM 转写（零硬件门槛，luna 实测全本 $2.51）——按你的机器条件选，见下方「两种解析引擎」
 >
 > A complete pipeline that turns a book / PDF into a reusable AI Agent Skill:
@@ -30,11 +31,12 @@ MiJi/
 ├── README_EN.md                                 # English version
 ├── skills/
 │   ├── mineru-pdf-parser/SKILL.md               # 【前置依赖 1】MinerU PDF 解析（安装/下载/踩坑）
-│   └── miji/SKILL.md                            # 【主流程】读书/看视频 → 封装 Skill 或 入库知识库
+│   └── miji/SKILL.md                            # 【主流程】读书/看视频/反编译 JAR → 封装 Skill 或 入库知识库
 │       └── scripts/
 │           ├── llm_fix.py                       # ASR 转写 LLM 纠错脚本
 │           ├── transcribe_prompt_gen.py         # 从视频标题自动生成转写提示词
-│           └── merge_sources.py                 # 多源融合草稿生成（交叉主题锚点）
+│           ├── merge_sources.py                 # 多源融合草稿生成（交叉主题锚点）
+│           └── jar_to_md.py                     # jadx 反编译源码 → 带类索引的单 markdown
 ├── examples/
 │   ├── refactoring-ui-principles/               # 【案例 Demo 1】PDF 蒸馏成品
 │   │   ├── SKILL.md                             #    《Refactoring UI》设计原则速查
@@ -283,6 +285,16 @@ python3 tools/kb.py draft Unix
 ```
 
 融合策略（按源关系自动选择）：本次为**同主题互补型**（书=体系 + 视频=实证）——书章节做骨架，视频做「亲历者实证」小节；冲突观点并列标注来源；详见 skills/miji/SKILL.md「融合策略」表。
+
+### 🫙 案例 Demo 六：JAR 蒸馏——反编译字节码入库（2026-09-09）
+
+朋友问「能不能蒸馏 jar」→ 当天实测跑通，JAR 成为第三种一等公民来源：
+
+- **样本**：gson-2.10.1（277KB）+ h2-2.2.224（2.5MB，528 个类）
+- **链路**：`jadx -d src xx.jar`（M1 Pro 实测 7.5s / 9.8s）→ `scripts/jar_to_md.py` 拼成带类索引的单 md（每类一行：全限定类名 + public 方法签名）→ `kb.py add` 入库 → 全文检索与 `.toc.md` 行号锚点跳读全部通过
+- **反编译质量**：变量名/泛型/注解保留，可直接提炼 API 用法与设计意图；个别复杂方法反编译失败不影响整体
+- **适用**：闭源依赖调研、遗留系统文档重建、mod/插件能力分析
+- **边界**：混淆 jar 需提供方 mapping.txt；反编译产物用于学习/互操作分析，勿整库照搬分发
 
 ## 📚 知识库形态（v1.3.0 新增）
 

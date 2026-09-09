@@ -1,14 +1,16 @@
-# MiJi — Turn Books, Videos & Podcasts into Agent Skills & Knowledge Bases
+# MiJi — Turn Books, Videos, Podcasts & JARs into Agent Skills & Knowledge Bases
 
 > **🌐 Language / 语言：** [中文](README.md) | [English](README_EN.md)
 
 > Why "MiJi"? A triple pun in Chinese: **secret manual** (武林秘籍 — learn the skill the moment you hold it), **game cheat code**, and literally **honey-sweet skill (蜜技)** — brewed by CC for her Poet 🍯
 >
-> A complete pipeline that turns a book / PDF / video into reusable AI knowledge:
+> A complete pipeline that turns a book / PDF / video / JAR package into reusable AI knowledge:
 > **Parse (local MinerU OR cloud VLM — pick by your hardware) → Distill methodology → Package as a Skill OR ingest into a Knowledge Base**
 > Also supports **video / podcast** (yt-dlp download → faster-whisper transcript → same distillation flow)
+> Also supports **JAR packages** (jadx decompilation → class-indexed source markdown → same distillation flow)
 >
 > v1.3.0 adds: **multi-source fusion** (book + video + article → one combined skill) and a **knowledge-base mode** (skip the skill packaging, keep distilling into topic folders with a built-in AI reading protocol); plus **parallel parsing for big files** (measured 2.1×)
+> v1.4.0 adds: **JAR mode** — jadx decompile → `jar_to_md.py` class-indexed markdown → same distillation flow (verified end-to-end on gson & h2)
 > **Two parsing engines**: local MinerU (~1GB models on YOUR device, runs offline) or cloud VLM transcription (zero hardware bar — luna measured $2.51 for a full book). Pick by your hardware, see "Two Parsing Engines" below
 
 This pipeline was proven end-to-end by **CC**, with three case studies:
@@ -25,11 +27,12 @@ MiJi/
 ├── README_EN.md                                 # English version (this file)
 ├── skills/
 │   ├── mineru-pdf-parser/SKILL.md               # [Prerequisite 1] MinerU PDF parsing (install/download/pitfalls)
-│   └── miji/SKILL.md                            # [Main flow] book/video → Skill pipeline
+│   └── miji/SKILL.md                            # [Main flow] book/video/jar → Skill pipeline
 │       └── scripts/
 │           ├── llm_fix.py                       # ASR transcript LLM correction script
 │           ├── transcribe_prompt_gen.py         # auto-generate transcription hints from the video title
-│           └── merge_sources.py                 # multi-source fusion draft (cross-topic anchors)
+│           ├── merge_sources.py                 # multi-source fusion draft (cross-topic anchors)
+│           └── jar_to_md.py                     # jadx-decompiled sources → single md with class index
 ├── examples/
 │   └── refactoring-ui-principles/               # [Demo 1] PDF-distilled skill
 │       ├── SKILL.md                             #    Refactoring UI design-principles cheat sheet
@@ -272,6 +275,16 @@ python3 tools/kb.py draft Unix
 ```
 
 Fusion strategy (picked by source relationship): this run was **same-topic complementary** (book = system + video = proof) — book chapters form the skeleton, the video becomes "first-hand evidence" sections; conflicting views are listed side by side with sources. See the fusion-strategy table in skills/miji/SKILL.md.
+
+### 🫙 Demo 6: JAR distillation — decompiled bytecode into the KB (2026-09-09)
+
+A friend asked "can you distill a jar?" → verified end-to-end the same day; JAR becomes a third first-class source:
+
+- **Samples**: gson-2.10.1 (277KB) + h2-2.2.224 (2.5MB, 528 classes)
+- **Pipeline**: `jadx -d src xx.jar` (7.5s / 9.8s on M1 Pro) → `scripts/jar_to_md.py` builds a single md with a class index (one line per class: FQCN + public method signatures) → `kb.py add` → full-text search and `.toc.md` line-anchor jump-reading all pass
+- **Decompiler quality**: variable names / generics / annotations preserved — API usage and design intent can be distilled directly
+- **Use cases**: closed-source dependency research, legacy system doc recovery, mod/plugin capability analysis
+- **Limits**: obfuscated jars need the vendor's mapping.txt; decompiled output is for learning/interop analysis, not wholesale redistribution
 
 ## 📚 Knowledge-Base Mode (v1.3.0)
 
