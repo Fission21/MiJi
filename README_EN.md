@@ -38,6 +38,7 @@ MiJi/
 │       ├── SKILL.md                             #    Refactoring UI design-principles cheat sheet
 │       └── references/refactoring-ui-full.md    #    Full book archive (58 principles)
 │       (Demo 2: the video-distilled minimax-h3-local-deploy skill is published alongside)
+│   └── jsoup-jar-distill/                       # [Demo 6] JAR-distilled artifact (cheat sheet + audit report)
 ├── tools/
 │   ├── kb.py                                    # knowledge-base CLI (add/search/draft/export)
 │   └── split_pdf.py                             # split a PDF by page ranges (for parallel parsing)
@@ -276,13 +277,29 @@ python3 tools/kb.py draft Unix
 
 Fusion strategy (picked by source relationship): this run was **same-topic complementary** (book = system + video = proof) — book chapters form the skeleton, the video becomes "first-hand evidence" sections; conflicting views are listed side by side with sources. See the fusion-strategy table in skills/miji/SKILL.md.
 
-### 🫙 Demo 6: JAR distillation — decompiled bytecode into the KB (2026-09-09)
+### 🫙 Demo 6: JAR distillation — 5 samples + cross-platform + quality audit (2026-09-09)
 
-A friend asked "can you distill a jar?" → verified end-to-end the same day; JAR becomes a third first-class source:
+A friend asked "can you distill a jar?" → verified end-to-end the same day, with a full quality audit; JAR becomes a third first-class source:
 
-- **Samples**: gson-2.10.1 (277KB) + h2-2.2.224 (2.5MB, 528 classes)
-- **Pipeline**: `jadx -d src xx.jar` (7.5s / 9.8s on M1 Pro) → `scripts/jar_to_md.py` builds a single md with a class index (one line per class: FQCN + public method signatures) → `kb.py add` → full-text search and `.toc.md` line-anchor jump-reading all pass
-- **Decompiler quality**: variable names / generics / annotations preserved — API usage and design intent can be distilled directly
+**Five samples** (M1 Pro):
+
+| Sample | Size | Decompile | Output |
+|--------|------|-----------|--------|
+| gson 2.10.1 | 277KB | 7.5s | 80 classes |
+| h2 2.2.224 | 2.5MB | 9.8s | 773 classes |
+| jsoup 1.17.2 | 455KB | 2s | 76 classes |
+| commons-lang3 3.14.0 | 604KB | 2s | 246 classes |
+| guava 33.2.1-jre | 2.9MB | 4s | 625 classes (2020 in-jar classes, only 2 method-level errors) |
+
+**Cross-platform**: Linux (Ubuntu 24.04 real machine + openjdk-17 + official zip jadx) produces **byte-identical class lists vs macOS** (per-file diff = zero); Windows ships an official `jadx.bat` launcher + `with-jre-win.zip` (bundled JRE). brew vs official zip output differs by 4/19342 lines (`--title` heading only).
+
+**Distillation audit** (jsoup; artifact in [examples/jsoup-jar-distill/](examples/jsoup-jar-distill/)):
+- Hallucination check: all 43 method names cited in the distillation verified against decompiled source → **43/43 real**
+- Behavior-claim audit: 8 behavioral assertions (e.g. `Safelist.addTags("noscript")` throws, `val()` textarea special-case) → **8/8 true**
+- Coverage vs jsoup.org cookbook: covers connection + selector API surfaces; the CSS syntax table is a string parser (outside bytecode semantics) and was correctly omitted
+- The audit method is codified in SKILL.md Step 1d "distillation audit" (decompiled source = ground truth)
+
+- **Pipeline**: `jadx -d src xx.jar` → `scripts/jar_to_md.py` class-indexed md (one line per class: FQCN + public signatures) → `kb.py add` / feed key classes to an LLM for distillation
 - **Use cases**: closed-source dependency research, legacy system doc recovery, mod/plugin capability analysis
 - **Limits**: obfuscated jars need the vendor's mapping.txt; decompiled output is for learning/interop analysis, not wholesale redistribution
 

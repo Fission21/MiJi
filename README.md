@@ -41,7 +41,8 @@ MiJi/
 │   ├── refactoring-ui-principles/               # 【案例 Demo 1】PDF 蒸馏成品
 │   │   ├── SKILL.md                             #    《Refactoring UI》设计原则速查
 │   │   └── references/refactoring-ui-full.md    #    全书全文存档（58 条原则）
-│   └── （案例 Demo 2：视频蒸馏的 minimax-h3-local-deploy skill 见上游 skills 目录结构说明）
+│   ├── （案例 Demo 2：视频蒸馏的 minimax-h3-local-deploy skill 见上游 skills 目录结构说明）
+│   └── jsoup-jar-distill/                       # 【案例 Demo 6】JAR 蒸馏成品（蒸馏稿 + 品鉴报告）
 ├── tools/
 │   ├── kb.py                                    # 知识库管理 CLI（add/search/draft/export）
 │   └── split_pdf.py                             # PDF 按页拆分（大文件并行解析用）
@@ -286,13 +287,29 @@ python3 tools/kb.py draft Unix
 
 融合策略（按源关系自动选择）：本次为**同主题互补型**（书=体系 + 视频=实证）——书章节做骨架，视频做「亲历者实证」小节；冲突观点并列标注来源；详见 skills/miji/SKILL.md「融合策略」表。
 
-### 🫙 案例 Demo 六：JAR 蒸馏——反编译字节码入库（2026-09-09）
+### 🫙 案例 Demo 六：JAR 蒸馏——5 样本实测 + 跨平台验证 + 蒸馏品鉴（2026-09-09）
 
-朋友问「能不能蒸馏 jar」→ 当天实测跑通，JAR 成为第三种一等公民来源：
+朋友问「能不能蒸馏 jar」→ 当天实测跑通并完成质量审计，JAR 成为第三种一等公民来源：
 
-- **样本**：gson-2.10.1（277KB）+ h2-2.2.224（2.5MB，528 个类）
-- **链路**：`jadx -d src xx.jar`（M1 Pro 实测 7.5s / 9.8s）→ `scripts/jar_to_md.py` 拼成带类索引的单 md（每类一行：全限定类名 + public 方法签名）→ `kb.py add` 入库 → 全文检索与 `.toc.md` 行号锚点跳读全部通过
-- **反编译质量**：变量名/泛型/注解保留，可直接提炼 API 用法与设计意图；个别复杂方法反编译失败不影响整体
+**五样本实测**（M1 Pro）：
+
+| 样本 | 体积 | 反编译 | 产出 |
+|------|------|--------|------|
+| gson 2.10.1 | 277KB | 7.5s | 80 类 |
+| h2 2.2.224 | 2.5MB | 9.8s | 773 类 |
+| jsoup 1.17.2 | 455KB | 2s | 76 类 |
+| commons-lang3 3.14.0 | 604KB | 2s | 246 类 |
+| guava 33.2.1-jre | 2.9MB | 4s | 625 类（jar 内 2020 class，仅 2 处方法级错误） |
+
+**跨平台**：Linux（Ubuntu 24.04 真机 + openjdk-17 + 官方 zip 版 jadx）与 macOS 反编译产物**逐文件 diff 零差异**；Windows 官方 `jadx.bat` + `with-jre-win.zip`（自带 JRE）。brew 版与官方 zip 版输出差异 4/19342 行（仅 `--title` 标题）。
+
+**蒸馏品鉴**（jsoup，成品见 [examples/jsoup-jar-distill/](examples/jsoup-jar-distill/)）：
+- 防幻觉抽查：蒸馏稿引用 43 个方法名逐个对反编译源码验证 → **43/43 真实存在**
+- 行为断言核验：8 条行为性断言（如 `Safelist.addTags("noscript")` 抛异常、`val()` 对 textarea 特判）→ **8/8 属实**
+- 覆盖对照：与 jsoup.org cookbook 比对，覆盖连接+选择器两大核心面；CSS 语法表属字符串解析器不在字节码语义内，蒸馏稿正确未写
+- 品鉴方法论已固化进 SKILL.md Step 1d「蒸馏品鉴法」（反编译源 = ground truth）
+
+- **链路**：`jadx -d src xx.jar` → `scripts/jar_to_md.py` 类索引 md（每类一行：全限定类名 + public 方法签名）→ `kb.py add` 入库 / 选关键类喂 LLM 蒸馏
 - **适用**：闭源依赖调研、遗留系统文档重建、mod/插件能力分析
 - **边界**：混淆 jar 需提供方 mapping.txt；反编译产物用于学习/互操作分析，勿整库照搬分发
 
