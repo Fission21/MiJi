@@ -170,6 +170,8 @@ python3 <skill>/scripts/jar_to_md.py <名字>-src/sources -o <名字>-all.md --t
 - **APK**：同 jadx（`jadx -d out app.apk`），清单/权限在 resources/AndroidManifest.xml
 - **混淆过的 jar**（类名 a/b/c）：先向提供方要 proguard mapping.txt 再反编译；没有映射时类索引信息量低，按字符串与结构推断
 - **版权边界**：反编译产物供互操作/学习分析；skill 里写「API 用法与设计要点」，别整库源码照搬分发
+- **跨平台（2026-09-09 实测）**：Linux（Ubuntu 24.04 x86_64 + openjdk-17-jre-headless + 官方 zip 版 jadx）与 macOS 产物**完全一致**（类清单 diff 零差异）；Windows 有官方 `jadx.bat` 启动器 + `jadx-1.5.6-with-jre-win.zip`（免装 Java）。坑：① 清单对比必须 `LC_ALL=C sort`（GNU/BSD sort 规则不同，否则 md5 对不上）② 官方 zip 版在 mac 上若系统只有 java stub 要 `export JAVA_HOME=$(/usr/libexec/java_home)`，Linux/Windows 无此问题 ③ class 数 > java 数是正常现象（内部类/匿名类合并进外部类）
+- **蒸馏品鉴法（反编译源 = ground truth）**：① 防幻觉抽查——正则抽取蒸馏稿引用的全部方法名，逐个到反编译源码验证存在性 ② 声明核验——蒸馏稿里的「行为性断言」（抛什么异常/默认值/特判）逐条到源码 grep 证据 ③ 覆盖对照——开源库拿官方文档（cookbook/api）比对，找蒸馏稿没覆盖的高频面 ④ 提示词铁律：只写材料中出现的 API + 注明出处类名 + 不确定写「实现细节未在材料中」
 
 ### Step 2 — 通读全书（REPL 式，别一次全读）
 
@@ -328,13 +330,15 @@ pdf[99].render(scale=2.5).to_pil().save('page.png')
 | 主人拖 PDF 进聊天只收到图标 PNG（占位图，文件本体不落盘） | 先确认收到的不是 32KB 级图标缩略图；直接找主人要路径（Finder 右键+Option=拷贝路径），或要 URL；顺手搜 ~/Downloads、~/Desktop 兜底 |
 | jar 是字节码没有 .java，unzip 出来全是 .class | 必须先 jadx 反编译（Step 1d），.class 不能直接喂蒸馏 |
 | 混淆过的 jar（类名全是 a/b/c） | 先要 proguard mapping.txt 再反编译；无映射时类索引信息量低，按字符串/结构推断 |
+| 跨平台对产物 md5 对不上 | 先查 `LC_ALL=C sort`（GNU/BSD 排序规则不同）；反编译输出本身跨平台一致（已实测） |
+| mac 上官方 zip 版 jadx 报 Unable to locate a Java Runtime | `export JAVA_HOME=$(/usr/libexec/java_home)`（系统 java stub 看不见 brew 装的 JDK）；Linux/Windows 无此坑 |
 
 ## 验证过的成品
 
 - `refactoring-ui-principles`（creative/）——《Refactoring UI》设计原则速查 + 全书存档（2026-08-27）
 - `mineru-pdf-parser`（devops/）——MinerU 部署与使用（本流程 Step 1 依赖它）
 - 视频模式实测（2026-08-27）：B站 3.5 分钟视频 → yt-dlp 下载（12MB/s）→ ffmpeg 抽音频 → faster-whisper small 30 秒转写 69 段，歌词/语音准确
-- JAR 模式实测（2026-09-09）：gson 2.10.1 + h2 2.2.224 双样本全链路——jadx 反编译（7.5s/9.8s）→ jar_to_md.py 类索引 md → kb.py 入库→检索→toc 行号锚点全部通过
+- JAR 模式实测（2026-09-09）：5 样本全链路——gson 2.10.1、h2 2.2.224、jsoup 1.17.2、commons-lang3 3.14.0、guava 33.2.1-jre（2020 类仅 2 处方法级反编译错误）；kb.py 入库→检索→toc 锚点全通过；Linux（VPS Ubuntu 24.04 真机）与 macOS 产物一致；jsoup 蒸馏稿防幻觉抽查 43/43、行为断言 8/8 对源码核实属实
 
 ## 相关
 
