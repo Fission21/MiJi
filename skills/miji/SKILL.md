@@ -1,7 +1,7 @@
 ---
 name: MiJi
 description: 书/视频/PDF/JAR 蒸馏成skill或入库知识库时用。MinerU/jadx解析→通读→提炼，多源融合。
-version: 1.4.0
+version: 1.5.0
 author: CC
 tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合, jar, jadx, 反编译]
 ---
@@ -11,6 +11,7 @@ tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合, jar, jad
 > 2026-08-27 实测跑通：主人发《Refactoring UI》PDF → 封装成 `refactoring-ui-principles` skill。
 > 2026-08-27 新增**视频模式**：yt-dlp 下载 → ffmpeg 抽音频 → faster-whisper 转写 → 同一蒸馏流程。
 > 2026-09-09 新增**JAR 模式**：jadx 反编译 → jar_to_md.py 类索引 md → 同一蒸馏流程（书/视频/字节码三源归一）。
+> 2026-09-17 新增**本地模型模式**：本地 llama.cpp（Qwen3.6-35B-A3B）逐章 map + 全书 reduce，零 API 成本蒸馏（DDIA 491 页英文书实战）。
 > 本 skill 固化整条流程，后续「读书/看视频/反编译 jar → 封装 skill」照此执行。
 
 ## 触发条件
@@ -180,6 +181,31 @@ python3 <skill>/scripts/jar_to_md.py <名字>-src/sources -o <名字>-all.md --t
 - 边读边在脑中标记：框架/原则/具体数值/CSS 写法/反模式
 - 大书（>3000 行）分 4-6 段读完，不要跳章节
 
+### Step 2b — 本地模型蒸馏模式（map-reduce，2026-09-17 DDIA 实战）
+
+**触发**：主人说「用本地模型」蒸馏（隐私 / 零 API 成本 / 离线）。实测：DDIA 491 页英文书 → 11 章 map + 全书 reduce 全程约 70 分钟，零成本。
+
+**前提**：本地 llama.cpp 服务在跑（本机：`bash ~/demo/models/start-qwen.sh` = Qwen3.6-35B-A3B Q4，端口 8081，加载约 40s；`curl :8081/health` 确认）。
+
+```bash
+# ① 按章锚点切分 → <主题>/.map/chXX.txt（行号记入 chapters.json，隐藏目录 kb.py 不扫）
+# ② map：逐章蒸馏（断点续跑：已有 distill_*.md 则跳过）
+python3 .map/distill_all.py            # 每章一个请求，产出 distill_chXX.md
+# ③ reduce：全部章节笔记 → reduce_synthesis.md（心法/地图/取舍/概念索引四层）
+python3 .map/reduce.py
+# ④ CC 组装 TOPIC.md（reduce 产物 + 原文/笔记双行号锚点）+ 防幻觉抽查
+# ⑤ 章节笔记合并成 <主题>_digest.md → kb add 入库（蒸馏层与原文双源并存，都能被 kb search 检索）
+```
+
+**请求要点（血泪）**：
+- **必须关 thinking**：`chat_template_kwargs: {"enable_thinking": false}`——Qwen3.6 默认 thinking，不关的话 max_tokens 全烧在 reasoning 上、**正文一个字不出**（实测 3500 tokens 全灭）
+- 参数：temperature 0.3、max_tokens 4000（中文笔记 2000-3000 字/章）
+- 速度基准（M1 Pro 32GB，Q4_K_M）：prefill 270-380 t/s（prompt 越长越慢）；生成 ~17 t/s（40K 大 prompt 降到 ~10 t/s）
+
+**map prompt 骨架**：按书小节顺序；「**短标题** — 解释」条目式；保留英文术语与具体数字；覆盖定义/原理/取舍(trade-off)/反模式/系统案例；明确忽略排版噪音（页眉残留、参考文献）；直接输出 markdown。
+
+**质检（蒸馏后必做）**：术语/数字回原文 grep 抽查——模型爱做「具体化发挥」（DDIA 实测 30 项 2 MISS：1 个是合理转述 p999→p99.9，1 个是自由发挥「Hilbert Curve」而原文只说 space-filling curve，已修正）。抽查重点：具体化举例的名词、数字、系统名。
+
 ### Step 3 — 判断封装形态（先问主人或按内容自定）
 
 | 书的内容 | 封装形态 |
@@ -332,6 +358,9 @@ pdf[99].render(scale=2.5).to_pil().save('page.png')
 | 混淆过的 jar（类名全是 a/b/c） | 先要 proguard mapping.txt 再反编译；无映射时类索引信息量低，按字符串/结构推断 |
 | 跨平台对产物 md5 对不上 | 先查 `LC_ALL=C sort`（GNU/BSD 排序规则不同）；反编译输出本身跨平台一致（已实测） |
 | mac 上官方 zip 版 jadx 报 Unable to locate a Java Runtime | `export JAVA_HOME=$(/usr/libexec/java_home)`（系统 java stub 看不见 brew 装的 JDK）；Linux/Windows 无此坑 |
+| Qwen 系本地模型蒸馏输出为空 / 全在 reasoning | 请求体加 `chat_template_kwargs: {"enable_thinking": false}`——默认 thinking 吃光 max_tokens，正文零输出 |
+| 英文书章标题是纯文本，kb.py 生成不出 toc | 先转成 markdown 标题（`# Chapter N. Title`）再 reindex——toc 只认 md 标题 / 中文章节 / 编号规则三类锚点 |
+| PDF 抽取的页眉页码混入正文、行尾断词 | 每页尾部「页码+竖线+标题」模式剥离 + `[a-z]-换行[a-z]` 连字符合并（DDIA 491 页实测 3782 处）|
 
 ## 验证过的成品
 
@@ -339,6 +368,7 @@ pdf[99].render(scale=2.5).to_pil().save('page.png')
 - `mineru-pdf-parser`（devops/）——MinerU 部署与使用（本流程 Step 1 依赖它）
 - 视频模式实测（2026-08-27）：B站 3.5 分钟视频 → yt-dlp 下载（12MB/s）→ ffmpeg 抽音频 → faster-whisper small 30 秒转写 69 段，歌词/语音准确
 - JAR 模式实测（2026-09-09）：5 样本全链路——gson 2.10.1、h2 2.2.224、jsoup 1.17.2、commons-lang3 3.14.0、guava 33.2.1-jre（2020 类仅 2 处方法级反编译错误）；kb.py 入库→检索→toc 锚点全通过；Linux（VPS Ubuntu 24.04 真机）与 macOS 产物一致；jsoup 蒸馏稿防幻觉抽查 43/43、行为断言 8/8 对源码核实属实
+- 本地模型模式实测（2026-09-17）：DDIA 491 页英文 PDF → 本地 Qwen3.6-35B-A3B 蒸馏 11 章（每章 ~3.5 分钟）+ reduce → TOPIC.md 6.6KB（8 心法/11 章地图/17 取舍/20 概念索引）+ 双源（原文 1.1MB + 蒸馏笔记 81KB）；防幻觉抽查 30 项 28 中，1 处修正后全对
 
 ## 相关
 
