@@ -1,7 +1,7 @@
 ---
 name: MiJi
 description: 书/视频/PDF/JAR 蒸馏成skill或入库知识库时用。MinerU/jadx解析→通读→提炼，多源融合。
-version: 1.5.0
+version: 1.6.0
 author: CC
 tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合, jar, jadx, 反编译]
 ---
@@ -206,6 +206,20 @@ python3 .map/reduce.py
 
 **质检（蒸馏后必做）**：术语/数字回原文 grep 抽查——模型爱做「具体化发挥」（DDIA 实测 30 项 2 MISS：1 个是合理转述 p999→p99.9，1 个是自由发挥「Hilbert Curve」而原文只说 space-filling curve，已修正）。抽查重点：具体化举例的名词、数字、系统名。
 
+### Step 2c — 全书中译模式（并行子代理，2026-09-18 DDIA 实战）
+
+**触发**：主人要中文翻译版（外文书、「我也要看」）。
+
+**流程**：主 agent 切章 → 写 `SPEC.md`（术语表 + 格式铁律）→ `delegate_task` 派子代理（≤10 并行，每章一个：**一任务双产出** = 完整中译 + 速查笔记，同一遍阅读完成）→ 主 agent 验证（文件存在/大小/首尾/`CHUNK_EOF` 泄漏四查，**子代理报告不可信**）→ 合并入库。
+
+**要点**：
+- SPEC.md 是唯一标准：30+ 条术语统一译法、「逐段完整翻译不许省略」「参考文献保留英文」「图片引用原样」「页码引用转换格式」
+- 分段写文件（一章译文 40-140KB）：`write_file` 开头 + `terminal cat >> heredoc` 追加，强制自检（`wc -c` + `tail` 首尾）
+- 11 章分两批（10+1）；实测 DDIA 491 页：批 1 ~11.5 分钟 + 批 2 ~10.7 分钟，译文共 94 万字节（中文比英文信息密度高，体积略缩）
+- 合并产物：`sources/<书>_zh.md`（全书中文版 + 目录头）→ `kb add --type translation`（**译文入库变第三源**，中文检索同时命中译文/笔记）
+
+**已知限制**：MinerU 解析不出脚注正文（仅角标），译文按规范保留标记不编造。
+
 ### Step 3 — 判断封装形态（先问主人或按内容自定）
 
 | 书的内容 | 封装形态 |
@@ -370,7 +384,7 @@ pdf[99].render(scale=2.5).to_pil().save('page.png')
 - 视频模式实测（2026-08-27）：B站 3.5 分钟视频 → yt-dlp 下载（12MB/s）→ ffmpeg 抽音频 → faster-whisper small 30 秒转写 69 段，歌词/语音准确
 - JAR 模式实测（2026-09-09）：5 样本全链路——gson 2.10.1、h2 2.2.224、jsoup 1.17.2、commons-lang3 3.14.0、guava 33.2.1-jre（2020 类仅 2 处方法级反编译错误）；kb.py 入库→检索→toc 锚点全通过；Linux（VPS Ubuntu 24.04 真机）与 macOS 产物一致；jsoup 蒸馏稿防幻觉抽查 43/43、行为断言 8/8 对源码核实属实
 - 本地模型模式实测（2026-09-17）：DDIA 491 页英文 PDF → 本地 Qwen3.6-35B-A3B 蒸馏 11 章（每章 ~3.5 分钟）+ reduce → TOPIC.md 6.6KB（8 心法/11 章地图/17 取舍/20 概念索引）+ 双源（原文 1.1MB + 蒸馏笔记 81KB）；防幻觉抽查 30 项 28 中，1 处修正后全对
-- DDIA 知识库（2026-09-18 完成）：《Designing Data-Intensive Applications》Early Release 版（491 页，第 12 章当时尚为 `???` 占位）→ **MinerU 解析**（10 分钟，549 标题 + 108 插图，插图拷入 sources/images/ 直接渲染）→ 本地 Qwen 逐章蒸馏 → TOPIC.md 行号双锚点（原文/笔记）；四源结构：ddia_clean.md（MinerU 原文）+ ddia_digest.md（蒸馏笔记）
+- DDIA 知识库（2026-09-18）：《Designing Data-Intensive Applications》Early Release 版（491 页）→ MinerU 解析（549 标题 + 108 插图）→ **Hermes agent 重做提炼**（并行子代理：11 章完整中译 94 万字节 + 笔记 2.8 万字）→ TOPIC.md 三源锚点；结构：ddia_clean.md（英文原文）/ ddia_zh.md（中文全译）/ ddia_digest.md（笔记）
 
 ## 相关
 
