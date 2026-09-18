@@ -11,13 +11,18 @@
 >
 > v1.3.0 adds: **multi-source fusion** (book + video + article → one combined skill) and a **knowledge-base mode** (skip the skill packaging, keep distilling into topic folders with a built-in AI reading protocol); plus **parallel parsing for big files** (measured 2.1×)
 > v1.4.0 adds: **JAR mode** — jadx decompile → `jar_to_md.py` class-indexed markdown → same distillation flow (verified end-to-end on gson & h2)
+> **v2.0 output menu**: 6 output modes × three-question menu (**audience / language / form**) — AI side: skill · knowledge base; human side: **full-book translation** (plain or interleaved bilingual) · **human guide**; plus all-in-one package. **Engine choice**: agent subagents / luna API / local model (measured quality parity; luna 4-5x faster)
 > **Two parsing engines**: local MinerU (~1GB models on YOUR device, runs offline) or cloud VLM transcription (zero hardware bar — luna measured $2.51 for a full book). Pick by your hardware, see "Two Parsing Engines" below
 
-This pipeline was proven end-to-end by **CC**, with three case studies:
+This pipeline was proven end-to-end by **CC**, with seven case studies:
 
 1. ***Refactoring UI* (252-page PDF)** → packaged into the `refactoring-ui-principles` skill — validated on **another machine using opencode + GLM 5.3 Flash** with a controlled A/B test (see Demo 1 below)
 2. **YouTube Chinese tech tutorial video (8:45)** → processed via video mode (yt-dlp → faster-whisper → LLM correction) into the `minimax-h3-local-deploy` skill (see Demo 2 below)
 3. ***Précis de l'Art de la Guerre* (Jomini, 484-page scanned PDF)** → knowledge-base topic `military`; also validated **2.1× parallel parsing** (2026-09-01, see Demo 3 below)
+4. **Two-engine full-book head-to-head**: same 484-page scan through local OCR and cloud VLM — ~97% character-level agreement (Demo 4)
+5. **Video + book fusion**: 1982 Bell Labs documentary + *The Art of UNIX Programming* → one "Unix" knowledge-base topic (Demo 5)
+6. **JAR distillation**: gson / h2 / jsoup + 5 samples end-to-end, cross-platform verified, with quality audit (Demo 6)
+7. **491-page English book, full Chinese output set**: KB + full translation + interleaved bilingual + human guide (Demo 7, first v2.0 all-in-one run)
 
 ## 📦 Repository Layout
 
@@ -64,11 +69,12 @@ MiJi/
 ├─────────────────────────────────────────────────────────────┤
 │  ③ Read the book/transcript (REPL-style, TOC first)         │
 ├─────────────────────────────────────────────────────────────┤
-│  ④ Choose packaging form: cheat-sheet / step-guide / persona │
+│  ④ Choose outputs (3-Q menu: audience / language / form)     │
 ├─────────────────────────────────────────────────────────────┤
-│  ⑤ Choose ONE output (or both):                              │
-│     ⚡ skill: SKILL.md (distilled rules) + references/        │
-│     📚 KB: kb.py add/draft → TOPIC.md + archives + anchors    │
+│  ⑤ Produce (multi-select, parallelizable):                   │
+│     🤖 AI side: skill (SKILL.md+refs) / KB (TOPIC.md+src)    │
+│     👤 Human: full translation (plain/interleaved) / guide   │
+│     🔄 All-in-one: everything above (DDIA 491p first run)    │
 ├─────────────────────────────────────────────────────────────┤
 │  ⑥ Verify (skill loads + real run) & deliver                │
 └─────────────────────────────────────────────────────────────┘
@@ -302,6 +308,21 @@ A friend asked "can you distill a jar?" → verified end-to-end the same day, wi
 - **Pipeline**: `jadx -d src xx.jar` → `scripts/jar_to_md.py` class-indexed md (one line per class: FQCN + public signatures) → `kb.py add` / feed key classes to an LLM for distillation
 - **Use cases**: closed-source dependency research, legacy system doc recovery, mod/plugin capability analysis
 - **Limits**: obfuscated jars need the vendor's mapping.txt; decompiled output is for learning/interop analysis, not wholesale redistribution
+
+### 📕 Demo 7: 491-page English book → full Chinese output set (KB + translation + interleaved + guide, 2026-09-18)
+
+**"Designing Data-Intensive Applications"** (Kleppmann, 491p English PDF) — first complete run of the v2.0 "all-in-one package":
+
+| Stage | Approach | Measured |
+|-------|----------|----------|
+| Parse | local MinerU pipeline | **10 min**, 549 headings + 108 images |
+| Knowledge base | `kb.py`, 3 sources (EN original / ZH full translation / chapter notes) | TOPIC.md + dual line anchors, searchable in both languages |
+| Full translation | **12 parallel subagents** under one SPEC | 940KB Chinese, ~25 min |
+| Interleaved bilingual | **DP sequence alignment** (Needleman-Wunsch on numeric/term features) | **3506 paragraph pairs** across 11 chapters (96.5%+) |
+| Human guide | 3 subagents, one per Part | **19K characters** |
+| Engine comparison | agent subagents vs luna API | **quality parity** (15/15 spot checks); luna **4-5x faster** (80s/chapter) |
+
+**Method codified**: SPEC.md as the single standard (glossary + formatting rules + chunked-write self-check) → SKILL.md Step 2c; alignment algorithm and engine benchmarks → SKILL.md "engine choice". Human side ships three reading versions (plain / interleaved / guide).
 
 ## 📚 Knowledge-Base Mode (v1.3.0)
 
