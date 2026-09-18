@@ -35,7 +35,7 @@ tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合, jar, jad
 | 格式 | OCR? | 走法 |
 |------|:---:|------|
 | Word/TXT/MD/HTML/EPUB | ❌ | 直接读，不进 MinerU（OCR 原生文本反而引入识别错误） |
-| PDF 文字版 | ❌ | 入库前 pypdfium2 探测文本层（如 `pdf[50].get_textpage().get_text_range()` 长度>0）；MinerU 走 txt 快速路径或 pdftotext 直抽 |
+| PDF 文字版 | ❌（不用 OCR 兵底，但**也别直抽了事**） | **统一走 MinerU**（2026-09-18 主人纠正）：实测 491 页文字版 MinerU 10 分钟 → 完整标题层级（549 标题）+ 98 处插图引用 + 108 张图；pypdfium2 直抽只有 13 个标题、0 图。直抽仅无 MinerU 环境时兵底，作字符级对照可另存一份 |
 | PDF 扫描版/图片型 | ✅ | 必须走 OCR：本地 MinerU 或云端 VLM（luna）二选一 |
 | 视频/音频 | ASR 而非 OCR | YouTube 等先抓官方字幕（`--write-subs`/页面 transcript，零 ASR），无字幕才 whisper |
 | JAR/APK（.class 字节码） | ❌（OCR 无意义） | jadx 反编译出 .java 后按文本路径走；资源文件从 jadx 的 resources/ 单独提取 |
@@ -361,6 +361,7 @@ pdf[99].render(scale=2.5).to_pil().save('page.png')
 | Qwen 系本地模型蒸馏输出为空 / 全在 reasoning | 请求体加 `chat_template_kwargs: {"enable_thinking": false}`——默认 thinking 吃光 max_tokens，正文零输出 |
 | 英文书章标题是纯文本，kb.py 生成不出 toc | 先转成 markdown 标题（`# Chapter N. Title`）再 reindex——toc 只认 md 标题 / 中文章节 / 编号规则三类锚点 |
 | PDF 抽取的页眉页码混入正文、行尾断词 | 每页尾部「页码+竖线+标题」模式剥离 + `[a-z]-换行[a-z]` 连字符合并（DDIA 491 页实测 3782 处）|
+| 文字版 PDF 图省事走 pypdfium2 直抽 | **也走 MinerU**——直抽丢结构（标题/列表/表格）和全部插图（DDIA 实测：直抽 13 标题/0 图 vs MinerU 549 标题/108 图，成本只 10 分钟）；直抽版可留作字符级对照 |
 
 ## 验证过的成品
 
@@ -369,6 +370,7 @@ pdf[99].render(scale=2.5).to_pil().save('page.png')
 - 视频模式实测（2026-08-27）：B站 3.5 分钟视频 → yt-dlp 下载（12MB/s）→ ffmpeg 抽音频 → faster-whisper small 30 秒转写 69 段，歌词/语音准确
 - JAR 模式实测（2026-09-09）：5 样本全链路——gson 2.10.1、h2 2.2.224、jsoup 1.17.2、commons-lang3 3.14.0、guava 33.2.1-jre（2020 类仅 2 处方法级反编译错误）；kb.py 入库→检索→toc 锚点全通过；Linux（VPS Ubuntu 24.04 真机）与 macOS 产物一致；jsoup 蒸馏稿防幻觉抽查 43/43、行为断言 8/8 对源码核实属实
 - 本地模型模式实测（2026-09-17）：DDIA 491 页英文 PDF → 本地 Qwen3.6-35B-A3B 蒸馏 11 章（每章 ~3.5 分钟）+ reduce → TOPIC.md 6.6KB（8 心法/11 章地图/17 取舍/20 概念索引）+ 双源（原文 1.1MB + 蒸馏笔记 81KB）；防幻觉抽查 30 项 28 中，1 处修正后全对
+- DDIA 知识库（2026-09-18 完成）：《Designing Data-Intensive Applications》Early Release 版（491 页，第 12 章当时尚为 `???` 占位）→ **MinerU 解析**（10 分钟，549 标题 + 108 插图，插图拷入 sources/images/ 直接渲染）→ 本地 Qwen 逐章蒸馏 → TOPIC.md 行号双锚点（原文/笔记）；四源结构：ddia_clean.md（MinerU 原文）+ ddia_digest.md（蒸馏笔记）
 
 ## 相关
 
