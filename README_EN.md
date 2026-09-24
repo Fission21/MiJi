@@ -245,6 +245,8 @@ The same 484-page scanned book, parsed **in full by both engines**, then compare
 2. **The cloud's real edge is concurrency**: local is capped at 2 workers by MPS (2.1× ceiling); 20 cloud workers could squeeze 46 min into under 10 — for money
 3. **Illustrated books belong to local**: luna produces zero images; all 36 battle diagrams came from MinerU
 
+> **Model choice (measured 2026-09-24)**: for visual transcription use **`gpt-5.6-luna` only**. The newer `gpt-6-luna` matches 5.6 on text tasks (and is ~15% faster), but when transcribing images it *restates* instead of copying — on the same 7 scanned pages its similarity to the archived run was 0.33-0.79 (5.6: 0.96-0.99): dropped lines, swapped names, invented section titles. A stricter prompt (verbatim / mark illegible chars) only lifted some pages to 0.61-0.85. → transcribe with 5.6-luna; keep 6-luna for text-only work (translation / distillation / guides).
+
 **Reproduce** (scripts in `tools/`, resumable; token limit ≥4000 or it truncates):
 
 ```bash
