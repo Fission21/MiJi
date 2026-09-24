@@ -8,7 +8,7 @@ tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合, jar, jad
 
 # 读书蒸馏流程（skill 与知识库双出口 · Hermes 专属）
 
-> 2026-08-27 实测跑通：主人发《Refactoring UI》PDF → 封装成 `refactoring-ui-principles` skill。
+> 2026-08-27 实测跑通：用户发《Refactoring UI》PDF → 封装成 `refactoring-ui-principles` skill。
 > 2026-08-27 新增**视频模式**：yt-dlp 下载 → ffmpeg 抽音频 → faster-whisper 转写 → 同一蒸馏流程。
 > 2026-09-09 新增**JAR 模式**：jadx 反编译 → jar_to_md.py 类索引 md → 同一蒸馏流程（书/视频/字节码三源归一）。
 > 2026-09-17 新增**本地模型模式**：本地 llama.cpp（Qwen3.6-35B-A3B）逐章 map + 全书 reduce，零 API 成本蒸馏（DDIA 491 页英文书实战）。
@@ -17,11 +17,11 @@ tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合, jar, jad
 
 ## 触发条件
 
-- 主人发来 PDF/EPUB/长文档，说「封装成 skill」「提炼成 skill」「读书」「做成 skill」
-- 主人发 B站/抖音/YouTube/小红书**视频链接**，说「把这个视频蒸馏成 skill」「提取视频内容」
-- 主人说「**入库**」「存进知识库」「建知识库」「多端蒸馏到一起」→ 知识库形态：`python3 ~/demo/scripts/kb.py add <主题> <文件...>`，库根 `~/demo/knowledge-base/`（详见下方「知识库形态」与 相关/kb.py）
-- 主人发来 `.jar`/`.apk`，说「蒸馏这个 jar」「把 jar 入库」「分析这个包」→ JAR 模式（Step 1d）
-- 主人要求把一本书/一段视频的方法论固化成可复用的 agent 技能
+- 用户发来 PDF/EPUB/长文档，说「封装成 skill」「提炼成 skill」「读书」「做成 skill」
+- 用户发 B站/抖音/YouTube/小红书**视频链接**，说「把这个视频蒸馏成 skill」「提取视频内容」
+- 用户说「**入库**」「存进知识库」「建知识库」「多端蒸馏到一起」→ 知识库形态：`python3 ~/demo/scripts/kb.py add <主题> <文件...>`，库根 `~/demo/knowledge-base/`（详见下方「知识库形态」与 相关/kb.py）
+- 用户发来 `.jar`/`.apk`，说「蒸馏这个 jar」「把 jar 入库」「分析这个包」→ JAR 模式（Step 1d）
+- 用户要求把一本书/一段视频的方法论固化成可复用的 agent 技能
 
 ## 内容来源（三条路径）
 
@@ -36,7 +36,7 @@ tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合, jar, jad
 | 格式 | OCR? | 走法 |
 |------|:---:|------|
 | Word/TXT/MD/HTML/EPUB | ❌ | 直接读，不进 MinerU（OCR 原生文本反而引入识别错误） |
-| PDF 文字版 | ❌（不用 OCR 兵底，但**也别直抽了事**） | **统一走 MinerU**（2026-09-18 主人纠正）：实测 491 页文字版 MinerU 10 分钟 → 完整标题层级（549 标题）+ 98 处插图引用 + 108 张图；pypdfium2 直抽只有 13 个标题、0 图。直抽仅无 MinerU 环境时兵底，作字符级对照可另存一份 |
+| PDF 文字版 | ❌（不用 OCR 兵底，但**也别直抽了事**） | **统一走 MinerU**（2026-09-18 用户纠正）：实测 491 页文字版 MinerU 10 分钟 → 完整标题层级（549 标题）+ 98 处插图引用 + 108 张图；pypdfium2 直抽只有 13 个标题、0 图。直抽仅无 MinerU 环境时兵底，作字符级对照可另存一份 |
 | PDF 扫描版/图片型 | ✅ | 必须走 OCR：本地 MinerU 或云端 VLM（luna）二选一 |
 | 视频/音频 | ASR 而非 OCR | YouTube 等先抓官方字幕（`--write-subs`/页面 transcript，零 ASR），无字幕才 whisper |
 | JAR/APK（.class 字节码） | ❌（OCR 无意义） | jadx 反编译出 .java 后按文本路径走；资源文件从 jadx 的 resources/ 单独提取 |
@@ -124,7 +124,7 @@ ASR 转写后**必须做二次纠错**，把带时间戳的转写稿 + 术语表
 
 ### Step 1c — 多源融合模式（2 个以上源 → 组合 skill）
 
-**触发**：主人给了 2 个以上来源（如「这本书 + 那个视频 + 这篇文章，合成一个 skill」）。
+**触发**：用户给了 2 个以上来源（如「这本书 + 那个视频 + 这篇文章，合成一个 skill」）。
 
 ```bash
 # 把多个源（各自已完成 Step 1/1b 的 md/txt）合并成融合草稿
@@ -141,7 +141,7 @@ python3 scripts/merge_sources.py <输出目录> <source1.md> <source2.txt> ...
 | 源关系 | 组合方式 |
 |--------|---------|
 | **同主题互补**（书=体系 + 视频=实操） | 以书的章节为骨架，视频内容作为对应章节的「实战补充」小节 |
-| **同主题冲突**（两个源说法矛盾） | 并列呈现 + 标注来源，不替主人裁决 |
+| **同主题冲突**（两个源说法矛盾） | 并列呈现 + 标注来源，不替用户裁决 |
 | **不同主题串联**（如 UI 设计 + 前端工程） | 按「主题树」重组：交叉锚点做顶级节点，各源独有内容做子节点 |
 | **深度悬殊**（一书一短文） | 短源内容并入长源骨架，在 SKILL.md 头部标注融合比例 |
 
@@ -184,7 +184,7 @@ python3 <skill>/scripts/jar_to_md.py <名字>-src/sources -o <名字>-all.md --t
 
 ### Step 2b — 本地模型蒸馏模式（map-reduce，2026-09-17 DDIA 实战）
 
-**触发**：主人说「用本地模型」蒸馏（隐私 / 零 API 成本 / 离线）。实测：DDIA 491 页英文书 → 11 章 map + 全书 reduce 全程约 70 分钟，零成本。
+**触发**：用户说「用本地模型」蒸馏（隐私 / 零 API 成本 / 离线）。实测：DDIA 491 页英文书 → 11 章 map + 全书 reduce 全程约 70 分钟，零成本。
 
 **前提**：本地 llama.cpp 服务在跑（本机：`bash ~/demo/models/start-qwen.sh` = Qwen3.6-35B-A3B Q4，端口 8081，加载约 40s；`curl :8081/health` 确认）。
 
@@ -209,7 +209,7 @@ python3 .map/reduce.py
 
 ### Step 2c — 全书中译模式（并行子代理，2026-09-18 DDIA 实战）
 
-**触发**：主人要中文翻译版（外文书、「我也要看」）。
+**触发**：用户要中文翻译版（外文书、「我也要看」）。
 
 **流程**：主 agent 切章 → 写 `SPEC.md`（术语表 + 格式铁律）→ `delegate_task` 派子代理（≤10 并行，每章一个：**一任务双产出** = 完整中译 + 速查笔记，同一遍阅读完成）→ 主 agent 验证（文件存在/大小/首尾/`CHUNK_EOF` 泄漏四查，**子代理报告不可信**）→ 合并入库。
 
@@ -261,7 +261,7 @@ MiJi 支持 **6 种产出模式**，用户用三问选择（可多选、可组�
 | 操作手册/工具书 | 步骤式：SKILL.md 命令流程 + scripts/ 模板 |
 | 思维框架类（如各 perspective skill） | 人物式：核心心智模型 + 表达方式 + 素材来源 |
 
-拿不准就问主人一句；多选时各产出独立跑（可并行）。
+拿不准就问用户一句；多选时各产出独立跑（可并行）。
 
 **导读模式要点（2026-09-18 实测）**：按 Part 切 3 个子代理并行写作（素材 = 章节笔记 + 译文，禁编造）；风格 = 连贯文章（非条目式），GUIDE-SPEC 统一规范；DDIA 实测 1.9 万字；luna 版单次调用即出 Part I（6084 字/44 秒），质量与 agent 版打平（抽查 12/12）。
 
@@ -308,7 +308,7 @@ references/<书名-slug>.md
 
 1. `skill_view(name='<slug>')` 确认能正常加载、无 lint 报错
 2. 有真实使用场景就**实跑一遍验证**（今天拿 252 页 PDF 全量跑通才交付）
-3. 报告路径 + 给主人桌面快捷方式（可选）：
+3. 报告路径 + 给用户桌面快捷方式（可选）：
    ```bash
    ln -sfn ~/.hermes/skills/<category>/<slug> ~/Desktop/<名字>-skill
    ```
@@ -402,8 +402,8 @@ pdf[99].render(scale=2.5).to_pil().save('page.png')
 | medium 模型下载/转写超慢 | 1.5GB 模型 + CPU 转 8 分钟视频要 45 分钟；除非有 GPU 否则用 small+LLM纠错替代 |
 | faster-whisper 首次下载模型卡住 | HF 下载需要网络畅通：有代理就 export HTTPS_PROXY，或设 HF_ENDPOINT=https://hf-mirror.com |
 | 与 book-to-skill（第三方）混淆 | 那个面向 Copilot/Amp/Claude Code，输出 chapters/glossary 结构；本 skill 是 Hermes 专属速查式 |
-| 主人找不到 skill 路径 | skill 根目录是隐藏目录，给桌面快捷方式或 Finder `Cmd+Shift+G` |
-| 主人拖 PDF 进聊天只收到图标 PNG（占位图，文件本体不落盘） | 先确认收到的不是 32KB 级图标缩略图；直接找主人要路径（Finder 右键+Option=拷贝路径），或要 URL；顺手搜 ~/Downloads、~/Desktop 兜底 |
+| 用户找不到 skill 路径 | skill 根目录是隐藏目录，给桌面快捷方式或 Finder `Cmd+Shift+G` |
+| 用户拖 PDF 进聊天只收到图标 PNG（占位图，文件本体不落盘） | 先确认收到的不是 32KB 级图标缩略图；直接找用户要路径（Finder 右键+Option=拷贝路径），或要 URL；顺手搜 ~/Downloads、~/Desktop 兜底 |
 | jar 是字节码没有 .java，unzip 出来全是 .class | 必须先 jadx 反编译（Step 1d），.class 不能直接喂蒸馏 |
 | 混淆过的 jar（类名全是 a/b/c） | 先要 proguard mapping.txt 再反编译；无映射时类索引信息量低，按字符串/结构推断 |
 | 跨平台对产物 md5 对不上 | 先查 `LC_ALL=C sort`（GNU/BSD 排序规则不同）；反编译输出本身跨平台一致（已实测） |
