@@ -245,7 +245,12 @@ The same 484-page scanned book, parsed **in full by both engines**, then compare
 2. **The cloud's real edge is concurrency**: local is capped at 2 workers by MPS (2.1× ceiling); 20 cloud workers could squeeze 46 min into under 10 — for money
 3. **Illustrated books belong to local**: luna produces zero images; all 36 battle diagrams came from MinerU
 
-> **Model choice (measured 2026-09-24)**: for visual transcription use **`gpt-5.6-luna` only**. The newer `gpt-6-luna` matches 5.6 on text tasks (and is ~15% faster), but when transcribing images it *restates* instead of copying — on the same 7 scanned pages its similarity to the archived run was 0.33-0.79 (5.6: 0.96-0.99): dropped lines, swapped names, invented section titles. A stricter prompt (verbatim / mark illegible chars) only lifted some pages to 0.61-0.85. → transcribe with 5.6-luna; keep 6-luna for text-only work (translation / distillation / guides).
+> **Model choice (2026-09-24 benchmark: 10 images × 2 models)**: keep using **`gpt-5.6-luna`** for image transcription.
+> - **Chinese scanned pages**: 5.6 scores **0.96-0.99** similarity vs the archived run; `gpt-6-luna` at default detail only **0.33-0.60**, with 43%-67% of its output being text that is not on the page (dropped lines, swapped names, invented section titles, page-level topic hallucination).
+> - **Not a general vision regression — it's CJK reading**: on the same prompt with an English book page, 6-luna matches 5.6 at **0.990** similarity (near-verbatim).
+> - **`detail: "high"` recovers most of it**: 6-luna jumps to **0.84-0.91** on Chinese pages (p300: 0.34 → 0.84), still below 5.6's 0.98; with `detail: "low"` 6-luna refuses outright ("text too small to read reliably").
+> - **Diagram/screenshot understanding is comparable**, but 6 is weaker on detail: misread digits (`17055506` → `1705506`), a dropped character in a filename, roughly half the output volume.
+> - Bottom line: **archival transcription → 5.6-luna; English pages / text-only work (translation, distillation, guides) → 6-luna, ~15% faster**; if you must use 6 on images, pass `detail: high`.
 
 **Reproduce** (scripts in `tools/`, resumable; token limit ≥4000 or it truncates):
 
